@@ -1,0 +1,397 @@
+par(mfrow = c(3, 2))
+plot(1)
+plot(1)
+plot(1)
+plot(1)
+plot(1)
+plot(1)
+a = load('~/Dropbox/Research/Power calculation/New4/random.number.rdata')
+a
+random.number
+load('~/Dropbox/Research/Power calculation/Simulation/random.number.rdata')
+random.number
+install.packages("ROCR")
+library(ROCR)
+a = load('~/Dropbox/Research/Power calculation/Package/data/HIP.Data.Dispersion.40.N.4.new.rdata')
+a
+x = HIP.Data.Dispersion.40.N.4[[1]][[1]]
+dim(x)
+library(edgeR)
+Compare.TEST = function(Data){#
+  ngenes= nrow(Data)#
+  n = ncol(Data)/2#
+  conds <- c(rep("Case",n),rep("Control",n))#
+  status=sapply(strsplit(row.names(Data),"_"),function(x) x[3])#
+  status[status=="F"]=FALSE#
+  status[status=="T"]=TRUE#
+#
+  mean.gene = apply(Data,1,mean)#
+  m = Data[mean.gene>5,]#
+#
+  R=mean(apply(m, 2,sum))#
+#
+  y <- DGEList(counts = m, group = conds)#
+  y <- calcNormFactors(y) #Calculate normalization factors to scale the raw library sizes#
+  y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags#
+  y <- estimateTagwiseDisp(y) #Estimates tagwise dispersion values by an empirical Bayes method based on weighted conditional maximum likelihood#
+  et <- exactTest(y)$table$P #Compute genewise exact tests for differences in the means between two groups of negative-binomially distributed counts#
+  design <- model.matrix(~conds)#
+  y <- DGEList(counts = m, group = conds)#
+  y <- calcNormFactors(y) #Calculate normalization factors to scale the raw library sizes#
+  y <- estimateGLMCommonDisp(y, design)#
+  y <- estimateGLMTrendedDisp(y, design)#
+  y <- estimateGLMTagwiseDisp(y, design)#
+  f <- glmFit(y, design)#
+  lrt <- glmLRT(f, coef=2)$table$PValue#
+  theta = 1/y$common.dispersion#
+  GLM.fit.each <- function(z){#
+    y0 = z[which(conds=="Control")]#
+    y1 = z[which(conds=="Case")]#
+    f <- function(z,d) {#
+      theta=d[[1]]#
+      R = d[[2]]#
+      y0 = d[[3]]#
+      y1=d[[4]]#
+      beta.0 = z[1]#
+      beta.1 = z[2]#
+      Target.Func = -sum(lgamma(theta+y0)-lgamma(theta)-lgamma(y0+1)+y0*log(R/theta*exp(beta.0))-(y0+theta)*log(1+R/theta*exp(beta.0)))-sum(lgamma(theta+y1)-lgamma(theta)-lgamma(y1+1)+y1*log(R/theta*exp(beta.0+beta.1))-(y1+theta)*log(1+R/theta*exp(beta.0+beta.1)))#
+      return(Target.Func)#
+    }#
+    pt1 <- optim(c(0, 0), f,d=list(theta,R,y0,y1))$par#
+    r1 = exp(sum(pt1))#
+    r0 = exp(pt1[1])#
+    var.beta.1 = (1/n)*((1/R)*(1/r0+1/r1)+2*1/theta)#
+    statistics = pt1[2]/sqrt(var.beta.1)#
+    return(c(pt1,statistics))#
+  }#
+  OUT.pars = t(apply(m,1,GLM.fit.each))#
+  p.value = 2*pnorm(-abs(OUT.pars[,3]))#
+  return(cbind(et,lrt,p.value))#
+}
+temp = Compare.TEST(x)
+temp
+dim(temp)
+?prediction
+?prediction
+data(ROCR.simple)#
+pred <- prediction(ROCR.simple$predictions,ROCR.simple$labels)
+pred
+?performance
+pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels)#
+perf <- performance(pred,"tpr","fpr")#
+plot(perf)
+pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels)#
+perf <- performance(pred,"tpr","fpr")#
+plot(perf, spread.estimate="boxplot")
+pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels)#
+perf <- performance(pred,"tpr","fpr")#
+plot(perf, spread.estimate="boxplot")
+pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels)#
+perf <- performance(pred,"tpr","fpr")#
+plot(perf, avg="vertical", spread.estimate="boxplot")
+ROCR.simple$predictions
+p.value = lapply(1:50,function(j) Compare.TEST(get(paste("HIP.Data.Dispersion.", dispersion, ".N.4", sep = ""))[[i]][[j]]))
+dispersion = 4
+dispersion = 40
+p.value = lapply(1:50,function(j) Compare.TEST(get(paste("HIP.Data.Dispersion.", dispersion, ".N.4", sep = ""))[[i]][[j]]))
+i=1
+p.value = lapply(1:5,function(j) Compare.TEST(get(paste("HIP.Data.Dispersion.", dispersion, ".N.4", sep = ""))[[i]][[j]]))
+exact = sapply(p.value, function(x) x[,1])#
+    wald = sapply(p.value, function(x) x[,3])
+dim(exact)
+exact
+length(exact)
+sapply(p.value, dim)
+labels = sapply(p.value, function(x) sapply(strsplit(rownames(x),"_"),function(x) x[3]))
+labels
+pred.1 = prediction(exact, labels)
+perf.1 <- performance(pred.1, measure = "tpr", x.measure = "fpr")
+plot(perf.1, col = "blue", avg = "vertical", spread.estimate = "boxplot", main = paste("Dispersion:", dispersion, "; LFC:", log.fold.change[i,2], sep = "")
+paste("Dispersion:", dispersion, "; LFC:", log.fold.change[i,2], sep = "")
+log.fold.change = rbind(c(-0.20,0.20),c(-0.26,0.26),c(-0.32,0.32),c(-0.38,0.38))
+paste("Dispersion:", dispersion, "; LFC:", log.fold.change[i,2], sep = "")
+plot(perf.1, col = "blue", avg = "vertical", spread.estimate = "boxplot", main = paste("Dispersion:", dispersion, "; LFC:", log.fold.change[i,2], sep = ""))
+exact = sapply(p.value, function(x) -x[,1])#
+    wald = sapply(p.value, function(x) -x[,3])#
+    labels = sapply(p.value, function(x) sapply(strsplit(rownames(x),"_"),function(x) x[3]))#
+    pred.1 = prediction(exact, labels)#
+    perf.1 <- performance(pred.1, measure = "tpr", x.measure = "fpr")#
+#
+    ## produce ROC plot#
+    plot(perf.1, col = "blue", avg = "vertical", spread.estimate = "boxplot", main = paste("Dispersion:", dispersion, "; LFC:", log.fold.change[i,2], sep = ""))
+pred.2 = prediction(wald, labels)#
+    perf.2 <- performance(pred.2, measure = "tpr", x.measure = "fpr")
+plot(perf.2, col = "red", avg = "vertical", spread.estimate = "boxplot", add = T)
+auc <- performance(pred,"auc")#
+# now converting S4 class to vector#
+auc <- unlist(slot(auc, "y.values"))
+auc
+pred.2
+auc <- performance(pred.2,"auc")#
+# now converting S4 class to vector#
+auc <- unlist(slot(auc, "y.values"))
+auc
+a = load('/Volumes/Macintosh HD/Users/Masaki/Dropbox/Research/Power calculation/Simulation/SeqDesign result/(Simulation)SeqDesign.20M.20.repeat.dispersion.5.lfc.mean.0.sd.0.2.filter.by.5.2B.automate.CDD.pilot.2.predict.EDR.not.considering.lfc.2way.transformation.rdata')
+a
+SeqDesign.2
+a
+str(SeqDesign.2)
+length(SeqDesign.2)
+length(SeqDesign.2[[1]])
+names(SeqDesign.2[[1]])
+SeqDesign.2[[1]]$Result
+SeqDesign.2[[1]]$Result[[1]]
+RNASeqDesign.2 = SeqDesign.2
+sapply(1:20, function(j){ #each posterior sampling#
+    sapply(RNASeqDesign.2[[i]]$Result[[j]], function(x) x[3,])#
+  })
+Result = RNASeqDesign.2
+Result2=lapply(Result,function(y) y[[1]])
+Result2
+length(Result)
+length(Result[[1]])
+length(Result2[[1]])
+length(Result2)
+Result2[[1]]
+Result2[[1]][[1]]
+Result2[[1]][[1]][[1]][3,]
+EDR=sapply(Result,function(z) apply(sapply(z, function(x) x[[1]][3,]), 1, median))
+EDR=sapply(Result2,function(z) apply(sapply(z, function(x) x[[1]][3,]), 1, median))
+EDR
+length(Result2)
+z = Result2[[1]]
+sapply(z, function(x) x[[1]][3,])
+z
+result.2 = sapply(1:20, function(i){ #repeatment#
+  ps = sapply(1:20, function(j){ #each posterior sampling#
+    sapply(RNASeqDesign.2[[i]]$Result[[j]], function(x) x[3,])#
+  })#
+  ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))#
+})
+target.N = c(5, 10, 20, 30, 40, 50, 100)
+result.2 = sapply(1:20, function(i){ #repeatment#
+  ps = sapply(1:20, function(j){ #each posterior sampling#
+    sapply(RNASeqDesign.2[[i]]$Result[[j]], function(x) x[3,])#
+  })#
+  ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))#
+})
+result.2
+Result
+Result2 = lapply(Result,function(y) y[[1]])
+Result2
+length(Result2)
+length(Result2[[1]])
+Result2[[i]][[j]]
+ps = sapply(1:length(Result2[[1]]), function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })
+ps
+sapply(Result2[[i]][[j]], function(x) x[3,])
+ps = lapply(1:length(Result2[[1]]), function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })
+ps
+Reduce(ps)
+Reduce(ps, "+")
+Reduce("+", ps)
+Reduce("+", ps)/28
+Reduce("+", ps)/20
+n.repeat = length(Result2)#
+  M = length(Result2[[1]])
+n.repeat
+M
+ps = lapply(1:M, function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })#
+    ps = Reduce("+", ps)/M
+ps
+ps = sapply(1:M, function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })
+ps
+target.N
+ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))
+ps.median
+ps = lapply(1:M, function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })#
+    ps = Reduce("+", ps)/M
+ps
+result = sapply(1:n.repeat, function(i){ #repeatment#
+    ps = sapply(1:M, function(j){ #each posterior sampling#
+      sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+    })#
+    ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))#
+  })
+result
+target.R = paste(c(40, 80, 120, 160), "M", sep = "") #correspond to half lane, 1 lane, 1 and half lane, 2 lane
+target.R
+target.R = c(40, 80, 120, 160) * 10^6
+target.R
+predict.N = rep(target.N, each = length(target.R))#
+  predict.R = rep(target.R, length(target.N))#
+]
+predict.N
+predict.R
+ps.median
+predict.N = rep(target.N, length(target.R))#
+  predict.R = rep(target.R, each = length(target.N))
+predict.N
+predict.R
+curve.fitting = function(n, r, EDR){#
+  library(DEoptim)#
+  lkh<-function(x){#
+    return(sum((-x[3]*r^(-x[4])-x[1]*n^(-x[2])+1-EDR)^2))#
+  }#
+  outOptim <- DEoptim(lkh,lower=c(0, 0, 0, 0),upper=c(100, 100, 10^10, 100), DEoptim.control(trace = F, itermax = 500))###stochastic fitting#
+  return(outOptim$optim$bestmem)#
+}
+rownames(ps.median) = target.N; colnames(ps.median) = target.R
+ps.median
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median)
+surface.para
+target.R
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median); surface.para
+EDR.curve = function(n, r, x) 1-x[1]*n^(-x[2])-x[3]*r^(-x[4])
+EDR.curve(100, 10^7, surface.para)
+EDR.curve(100, 20^7, surface.para)
+EDR.curve(50, 20^7, surface.para)
+EDR.curve(50, 10^7, surface.para)
+EDR.curve(50, 10, surface.para)
+EDR.curve(50, 10^6, surface.para)
+EDR.curve(50, 10^5, surface.para)
+EDR.curve(50, 100, surface.para)
+EDR.curve(50, 10, surface.para)
+EDR.curve(50, 50, surface.para)
+EDR.curve(1000, 50, surface.para)
+EDR.curve(10, 50, surface.para)
+EDR.curve(2, 50, surface.para)
+EDR.curve(3, 50, surface.para)
+EDR.curve(4, 50, surface.para)
+EDR.curve(5, 50, surface.para)
+target.N
+ps.median
+EDR.curve(5, 4*10^7, surface.para)
+EDR.curve(10, 4*10^7, surface.para)
+EDR.curve(20, 4*10^7, surface.para)
+EDR.curve(30, 4*10^7, surface.para)
+EDR.curve(40, 4*10^7, surface.para)
+EDR.curve(50, 4*10^7, surface.para)
+EDR.curve(80, 4*10^7, surface.para)
+EDR.curve(1000, 4*10^7, surface.para)
+EDR.curve(100, 4*10^7, surface.para)
+length(Result)
+Result = Result[[1]]
+Result
+length(Result)
+Result2 = Result$Result
+length(Result2[[1]])
+length(Result2)
+Result2 = Result$Result#
+#
+  M = length(Result2)#
+  # EDR=sapply(Result,function(z) apply(sapply(z, function(x) x[[1]][3,]), 1, median))#
+#
+  ps = sapply(1:M, function(j){ #each posterior sampling#
+    sapply(Result2[[i]][[j]], function(x) x[3,]) #for each depth#
+  })#
+  ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))
+M = length(Result2)#
+  # EDR=sapply(Result,function(z) apply(sapply(z, function(x) x[[1]][3,]), 1, median))#
+#
+  ps = sapply(1:M, function(j){ #each posterior sampling#
+    sapply(Result2[[j]], function(x) x[3,]) #for each depth#
+  })#
+  ps.median = matrix(apply(ps, 1, median), nrow = length(target.N))
+ps.median
+rownames(ps.median) = target.N; colnames(ps.median) = target.R#
+  predict.N = rep(target.N, length(target.R))#
+  predict.R = rep(target.R, each = length(target.N))#
+#
+  surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median)
+surface.para
+surface.para[3]*10^8
+surface.para[3]*(10^8)^(-surface.para[4])
+(10^8)^(-surface.para[4])
+ps.median[,2] = ps.median[,2] + 0.05
+ps.median[,3] = ps.median[,3] + 0.1
+ps.median[,4] = ps.median[,4] + 0.12
+ps.median
+ps.median[ps.median > 1] = 1
+ps.median
+surface.para[4]
+surface.para = curve.fitting(n = predict.N, r = predict.R, EDR = ps.median)
+surface.para
+EDR.curve(5, 4*10^7, surface.para)
+EDR.curve(5, 8*10^7, surface.para)
+EDR.curve(5, 1.2*10^8, surface.para)
+EDR.curve(5, 1.6*10^8, surface.para)
+EDR.curve(30, 1.6*10^8, surface.para)
+EDR.curve(30, 4*10^7, surface.para)
+EDR.curve(30, 4*10^7, surface.para)
+EDR.curve(40, 4*10^7, surface.para)
+?mean
+a = load('~/Dropbox/Research/Power calculation/Package/data/Two dimentsion hyperplane parameter.RData')
+a
+a = load('~/Dropbox/Research/Power calculation/Real data/Mouse HIV/Data for analysis/HIP.n.2.data.rdata')
+a
+length(HIP.n.2)
+a = load('~/Dropbox/Research/Power calculation/Package/Data/Normalized.HIP.data.rdata')
+a
+dim(Normalized.HIP.data)
+a = load('~/Dropbox/Research/Power calculation/Package/Data/HIP.n.12.data.rdata')
+a
+dim(HIP.n.12)
+a = load('~/Dropbox/Research/Power calculation/Package/Data/Normalized.HIP.data.rdata')
+a
+conds <- c(rep("Case",12),rep("Control",12))#
+Data.all=Normalized.HIP.data
+Subsampling <- function(Data.all, n, conds.all){#
+  ind=c(sample(which(conds.all%in%"Case"),n,replace=FALSE),sample(which(conds.all%in%"Control"),n,replace=FALSE))#
+  Data.sub=Data.all[,ind]#
+  mean.gene=apply(Data.sub,1,mean)#
+#
+  Data.filter=Data.sub[-which(mean.gene<5),]#
+  return(nrow(Data.filter))#
+}
+HIP.n.12
+conds <- c(rep("Case",12),rep("Control",12))#
+Data.all=Normalized.HIP.data
+n=12#
+HIP.n.12.test=Subsampling(Data.all,n,conds)
+all(HIP.n.12 == HIP.n.12.test0
+all(HIP.n.12 == HIP.n.12.test)
+Subsampling <- function(Data.all, n, conds.all){#
+  ind = if(n == ncol(Data.all)) 1:ncol(Data.all) else c(sample(which(conds.all%in%"Case"),n,replace=FALSE),sample(which(conds.all%in%"Control"),n,replace=FALSE))#
+  Data.sub=Data.all[,ind]#
+  mean.gene=apply(Data.sub,1,mean)#
+#
+  Data.filter=Data.sub[-which(mean.gene<5),]#
+  return(nrow(Data.filter))#
+}
+HIP.n.12.test=Subsampling(Data.all,n,conds)
+all(HIP.n.12 == HIP.n.12.test)
+dim(HIP.n.12)
+dim(HIP.n.12.test)
+HIP.n.12.test
+dim(Data.all)
+mean.gene=apply(Data.all,1,mean)
+sum(mean.gene > 5)
+head(HIP.n.12)
+head(HIP.n.12.test)
+head(Data.all[mean.gene > 5,])
+head(rowMeans(HIP.n.12))
