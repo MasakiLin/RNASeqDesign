@@ -1,6 +1,12 @@
 # RNASeqDesign
 This is an R package designed for power calculation and study design in RNA-Seq experiments.
 
+To install this package, please copy and paste following codes into your R session:
+
+1. install.packages("devtools")
+2. library(devtools)
+3. install_github("MasakiLin/RNASeqDesign")
+
 To reproduce the analysis presented in the manuscript, please download "Data.zip" from following dropbox link and "Codes for reproducing results.zip". 
 
 "Codes for reproducing results.zip":
