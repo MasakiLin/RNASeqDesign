@@ -1,11 +1,12 @@
 Package: RNASeqDesign
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Power calculation and study design for RNA-Seq
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Chien-Wei Lin, Ge Liao, Mei-Ling Ting Lee, Yong Seok Park and George C. Tseng
+Maintainer: Chien-Wei Lin <masaki396@gmail.com>
+Description: Power calculation and study design for RNA-Seq
+Depends: R (>= 3.1.0), edgeR, DEoptim
+License: GPL-2
 Encoding: UTF-8
 LazyData: true
+RoxygenNote: 6.0.1
