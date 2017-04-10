@@ -1,6 +1,6 @@
 .Rproj.user
 .Rhistory
 .Ruserdata
-
+.RData
 .gitignore
 .Rbuildignore
