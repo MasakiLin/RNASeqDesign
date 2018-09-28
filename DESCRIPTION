@@ -1,9 +1,9 @@
 Package: RNASeqDesign
 Type: Package
-Title: Power calculation and study design for RNA-Seq
+Title: A framework for RNA-Seq genome-wide power calculation and study design issues
 Version: 0.1.0
-Author: Chien-Wei Lin, Ge Liao, Mei-Ling Ting Lee, Yong Seok Park and George C. Tseng
-Maintainer: Chien-Wei Lin <masaki396@gmail.com>
+Author: Chien-Wei Lin, Ge Liao, Peng Liu, Mei-Ling Ting Lee, Yong Seok Park and George C. Tseng
+Maintainer: Chien-Wei Lin <chlin@mcw.edu>
 Description: Power calculation and study design for RNA-Seq
 Depends: R (>= 3.1.0), edgeR, DEoptim
 License: GPL-2
