@@ -2,7 +2,7 @@
 # RNASeqDesign: Sample size and power calculation for RNA-Seq
 # Version : 0.1.0
 # Authors : Chien-Wei Lin, Ge Liao, Mei-Ling Ting Lee, Yong Seok Park and George C. Tseng
-# latest update : 04/07/2017
+# latest update : 09/27/2018
 ######################################################################################################################
 #Two-beta
 MixtureModel.two.beta <- function(p.value, init.r = NULL, init.s = s.lower, l.upper = .9, r.upper = .9, s.upper = Inf, r2.upper = Inf, s2.upper = 1,
@@ -131,6 +131,7 @@ MixtureModel.two.beta.2 <- function(p.value, lambda = NULL, init.r = NULL, init.
 ##' @param target.R Targeted sequencing depth.
 ##' @param target.theta Targeted proportion of sample size in second group compared to first group.
 ##' @param tol Threshold for deciding if use CDD to estimate the proportion of DE genes.
+##' @param tagwiseDisp Use tag-wise dispersion setting or not. Default is F, which uses common dispersion for all genes.
 ##' @param filter Filter genes based on mean counts?
 ##' @param filter.level Filter the genes with mean counts less than this level.
 ##' @return An object of class list is returned:
@@ -140,7 +141,7 @@ MixtureModel.two.beta.2 <- function(p.value, lambda = NULL, init.r = NULL, init.
 ##' @export
 Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Case"), FDR, M,
                                     target.N, target.R = NULL, target.theta = NULL,
-                                    tol = 0.1,
+                                    tol = 0.1, tagwiseDisp=F,
                                     filter = T, filter.level = 5){
   method = "TwoBeta"
   N0 = sum(status == group.name[1])
@@ -161,20 +162,28 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
   library(edgeR)
   y <- DGEList(counts = Pilot.data, group = status)
   y <- calcNormFactors(y) #Calculate normalization factors to scale the raw library sizes
-  y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
-  delta = 1/y$common.dispersion
+  if(tagwiseDisp==F){
+    y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = rep(1/y$common.dispersion,nrow(Pilot.data))
+  } else if (tagwiseDisp==T){
+    y <- estimateCommonDisp(y)
+    y <- estimateTagwiseDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = 1/y$tagwise.dispersion
+  }
+  
 
-  GLM.fit.each <- function(z){
+
+  GLM.fit.each <- function(z,delta){
     y0 = z[which(status==group.name[1])]
     y1 = z[which(status==group.name[2])]
     f <- function(z,d) {
-      delta = d[[1]]
+      delta_i = d[[1]]
       R = d[[2]]
       y0 = d[[3]]
       y1 = d[[4]]
       beta.0 = z[1]
       beta.1 = z[2]
-      Target.Func = -sum(lgamma(delta+y0)-lgamma(delta)-lgamma(y0+1)+y0*log(R/delta*exp(beta.0))-(y0+delta)*log(1+R/delta*exp(beta.0)))-sum(lgamma(delta+y1)-lgamma(delta)-lgamma(y1+1)+y1*log(R/delta*exp(beta.0+beta.1))-(y1+delta)*log(1+R/delta*exp(beta.0+beta.1)))
+      Target.Func = -sum(lgamma(delta_i+y0)-lgamma(delta_i)-lgamma(y0+1)+y0*log(R/delta_i*exp(beta.0))-(y0+delta_i)*log(1+R/delta_i*exp(beta.0)))-sum(lgamma(delta_i+y1)-lgamma(delta_i)-lgamma(y1+1)+y1*log(R/delta_i*exp(beta.0+beta.1))-(y1+delta_i)*log(1+R/delta_i*exp(beta.0+beta.1)))
       return(Target.Func)
     }
 
@@ -187,8 +196,10 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
   }
 
 
-  OUT.pars = t(apply(round(Pilot.data),1,GLM.fit.each))
+  #OUT.pars = t(apply(round(Pilot.data),1,GLM.fit.each))
+  OUT.pars = t(sapply(1:nrow(Pilot.data),function(i) GLM.fit.each(round(Pilot.data)[i,],delta=delta[i])))
   colnames(OUT.pars) = c("Beta0", "Beta1", "Statistics")
+  rownames(OUT.pars)=rownames(Pilot.data)
 
   model = cbind(OUT.pars[,1:2], delta)
 
@@ -254,7 +265,7 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
       Resampling <- function(target.N, target.R){
         DE_status_posterior = sapply(1:length(posterior),function(x) sample(c(FALSE,TRUE),1,prob = c(posterior[x],1-posterior[x]),replace=TRUE))
 
-        transform.p.value <- function(p.value.each, DE_status_each, parameter, model, transform.null = F){
+        transform.p.value <- function(p.value.each, delta, DE_status_each, parameter, model, transform.null = F){
           n.old = parameter[[1]]
           n.new = parameter[[2]]
           R.old = parameter[[3]]
@@ -295,8 +306,8 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
           }
         }
 
-        p.value.updated = lapply(1:ngenes,function(x) transform.p.value(p.value.mod[x], DE_status_posterior[x], parameter = parameter,
-                                                                        model = model[x,], transform.null = transform.null))
+        p.value.updated = lapply(1:ngenes,function(x) transform.p.value(p.value.mod[x], delta[x], DE_status_posterior[x], parameter = parameter,
+                                                                        model = model[x,], transform.null = F))
 
         result = lapply(1:length(target.R), function(i){ #for each depth
           p.value.star.posterior = t(sapply(p.value.updated, function(x) x[i,]))
@@ -366,7 +377,7 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
       Result = lapply(1:M, function(x){
         Resampling(target.N = parameter[[2]], target.R = parameter[[4]])
       })
-      return(list(Result = Result))
+      return(list(Result = Result,delta=delta))
     }
   }
 }
@@ -379,6 +390,7 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
 ##' @param group.name A vector of length two. First element is the group name of first group, and the second element is of second group.
 ##' @param is_DE A vector of True or False which indicate the DE status of each gene.
 ##' @param FDR FDR level.
+##' @param tagwiseDisp Use tag-wise dispersion setting or not. Default is F, which uses common dispersion for all genes.
 ##' @param filter Filter genes based on mean counts?
 ##' @param filter.level Filter the genes with mean counts less than this level.
 ##' @return An object of class list is returned:
@@ -387,7 +399,7 @@ Estimate.EDR.from.pilot <- function(Data, status, group.name = c("Control", "Cas
 ##' @author Chien-Wei Lin
 ##' @export
 Estimate.true.EDR = function(Data, status, group.name = c("Control", "Case"), is_DE,
-                             FDR, filter = T, filter.level = 5){
+                             FDR, filter = T,tagwiseDisp=F, filter.level = 5){
   N0 = sum(status == group.name[1])
   N1 = sum(status == group.name[2])
   theta = N1/N0
@@ -419,20 +431,28 @@ Estimate.true.EDR = function(Data, status, group.name = c("Control", "Case"), is
   library(edgeR)
   y <- DGEList(counts = Pilot.data, group = status)
   y <- calcNormFactors(y) #Calculate normalization factors to scale the raw library sizes
-  y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
-  delta = 1/y$common.dispersion
-
-  GLM.fit.each <- function(z){
+  if(tagwiseDisp==F){
+    y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = rep(1/y$common.dispersion,nrow(Pilot.data))
+  } else if (tagwiseDisp==T){
+    y <- estimateCommonDisp(y)
+    y <- estimateTagwiseDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = 1/y$tagwise.dispersion
+  }
+  
+  
+  
+  GLM.fit.each <- function(z,delta){
     y0 = z[which(status==group.name[1])]
     y1 = z[which(status==group.name[2])]
     f <- function(z,d) {
-      delta = d[[1]]
+      delta_i = d[[1]]
       R = d[[2]]
       y0 = d[[3]]
       y1 = d[[4]]
       beta.0 = z[1]
       beta.1 = z[2]
-      Target.Func = -sum(lgamma(delta+y0)-lgamma(delta)-lgamma(y0+1)+y0*log(R/delta*exp(beta.0))-(y0+delta)*log(1+R/delta*exp(beta.0)))-sum(lgamma(delta+y1)-lgamma(delta)-lgamma(y1+1)+y1*log(R/delta*exp(beta.0+beta.1))-(y1+delta)*log(1+R/delta*exp(beta.0+beta.1)))
+      Target.Func = -sum(lgamma(delta_i+y0)-lgamma(delta_i)-lgamma(y0+1)+y0*log(R/delta_i*exp(beta.0))-(y0+delta_i)*log(1+R/delta_i*exp(beta.0)))-sum(lgamma(delta_i+y1)-lgamma(delta_i)-lgamma(y1+1)+y1*log(R/delta_i*exp(beta.0+beta.1))-(y1+delta_i)*log(1+R/delta_i*exp(beta.0+beta.1)))
       return(Target.Func)
     }
 
@@ -443,10 +463,13 @@ Estimate.true.EDR = function(Data, status, group.name = c("Control", "Case"), is
     statistics = pt1[2]/sqrt(var.beta.1)
     return(c(pt1,statistics))
   }
-
-  OUT.pars = t(apply(round(Pilot.data), 1, GLM.fit.each))
+  
+  
+  #OUT.pars = t(apply(round(Pilot.data),1,GLM.fit.each))
+  OUT.pars = t(sapply(1:nrow(Pilot.data),function(i) GLM.fit.each(round(Pilot.data)[i,],delta[i])))
   colnames(OUT.pars) = c("Beta0", "Beta1", "Statistics")
-
+  rownames(OUT.pars)=rownames(Pilot.data)
+  
   p.value = 2*pnorm(-abs(OUT.pars[,3]))
 
   True.lambda.post = mean(!is_DE)
@@ -497,7 +520,7 @@ Estimate.true.EDR = function(Data, status, group.name = c("Control", "Case"), is
     Declare_true  = sum(Declare_status=="DE")
 
     return(list(Result = c(TP_true = TP_hat_true, TN_true = TN_hat_true,
-                           EDR_true = EDR_true)))
+                           EDR_true = EDR_true),delta=delta))
   }
 
 }
@@ -566,3 +589,97 @@ Predict.EDR = function(target.N, target.R, Surface.para){
 
   return(EDR.curve(target.N, target.R, Surface.para))
 }
+
+
+Estimate.lambda.from.pilot <- function(Data, status, group.name = c("Control", "Case"), FDR, M,
+                                    target.N, target.R = NULL, target.theta = NULL,
+                                    tol = 0.1, tagwiseDisp=F,
+                                    filter = T, filter.level = 5){
+  method = "TwoBeta"
+  N0 = sum(status == group.name[1])
+  N1 = sum(status == group.name[2])
+  theta = N1/N0
+  if(is.null(target.theta)) target.theta = theta
+  
+  mean.gene = apply(Data, 1, mean)
+  
+  Data.filter = if(filter) Data[which(mean.gene>filter.level),] else Data
+  
+  R = mean(apply(Data.filter, 2, sum))
+  if(is.null(target.R)) target.R = R
+  
+  Pilot.data = Data.filter
+  colnames(Pilot.data)=1:ncol(Data.filter)
+  
+  library(edgeR)
+  y <- DGEList(counts = Pilot.data, group = status)
+  y <- calcNormFactors(y) #Calculate normalization factors to scale the raw library sizes
+  if(tagwiseDisp==F){
+    y <- estimateCommonDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = rep(1/y$common.dispersion,nrow(Pilot.data))
+  } else if (tagwiseDisp==T){
+    y <- estimateCommonDisp(y)
+    y <- estimateTagwiseDisp(y) #Maximizes the negative binomial conditional common likelihood to give the estimate of the common dispersion across all tags
+    delta = 1/y$tagwise.dispersion
+  }
+  
+  
+  
+  GLM.fit.each <- function(z,delta){
+    y0 = z[which(status==group.name[1])]
+    y1 = z[which(status==group.name[2])]
+    f <- function(z,d) {
+      delta_i = d[[1]]
+      R = d[[2]]
+      y0 = d[[3]]
+      y1 = d[[4]]
+      beta.0 = z[1]
+      beta.1 = z[2]
+      Target.Func = -sum(lgamma(delta_i+y0)-lgamma(delta_i)-lgamma(y0+1)+y0*log(R/delta_i*exp(beta.0))-(y0+delta_i)*log(1+R/delta_i*exp(beta.0)))-sum(lgamma(delta_i+y1)-lgamma(delta_i)-lgamma(y1+1)+y1*log(R/delta_i*exp(beta.0+beta.1))-(y1+delta_i)*log(1+R/delta_i*exp(beta.0+beta.1)))
+      return(Target.Func)
+    }
+    
+    pt1 <- optim(c(0, 0), f, d = list(delta, R, y0, y1))$par
+    r1 = exp(sum(pt1))
+    r0 = exp(pt1[2])
+    var.beta.1 = (1/N0)*((1 + theta*r0)/(theta*R*r1) + (1+theta)/(theta*delta))
+    statistics = pt1[2]/sqrt(var.beta.1)
+    return(c(pt1,statistics))
+  }
+  
+  
+  #OUT.pars = t(apply(round(Pilot.data),1,GLM.fit.each))
+  OUT.pars = t(sapply(1:nrow(Pilot.data),function(i) GLM.fit.each(round(Pilot.data)[i,],delta=delta[i])))
+  colnames(OUT.pars) = c("Beta0", "Beta1", "Statistics")
+  rownames(OUT.pars)=rownames(Pilot.data)
+  
+  model = cbind(OUT.pars[,1:2], delta)
+  
+  p.value = 2*pnorm(-abs(OUT.pars[,3]))
+  mean.count = rowMeans(Pilot.data)
+  
+  q.value = p.adjust(p.value, method = "BH")
+  
+  mean.by.group = apply(Pilot.data,1,function(x) tapply(x, status, mean))
+  fold.change = (mean.by.group[1, ] + 1)/(mean.by.group[2, ] + 1)
+  
+  #Use two method to estimate lamdba
+  #mle
+  Fitted.Model.MLE = MixtureModel.two.beta(p.value, s.lower = 1, l.upper = 0.99)
+  #print("Use CDD to estimate lambda")
+  Fitted.Model.CDD = MixtureModel.two.beta.2(p.value, s.lower = 1, l.upper = 0.99)
+  
+  check.if.use.CDD = function(model, uniform.cut = .5){
+    r = model[4]
+    s = model[5]
+    pbeta(1, r, s) - pbeta(uniform.cut, r, s) - uniform.cut
+  }
+  
+  index.use.CDD = check.if.use.CDD(Fitted.Model.MLE)
+  
+  index.use.CDD.emp<-sum(p.value>0.5,na.rm=T)/(sum(p.value>0,na.rm=T)*0.85)
+  
+  return(list(index=index.use.CDD,index.emp=index.use.CDD.emp,MLE=Fitted.Model.MLE,cdd=Fitted.Model.CDD,pvalue=p.value))
+  
+}
+
