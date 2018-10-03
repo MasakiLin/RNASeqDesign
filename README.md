@@ -10,10 +10,10 @@ To install this package, please copy and paste following codes into your R sessi
 To reproduce the analysis presented in the manuscript, please download "Data.zip" from following dropbox link and "Codes for reproducing results.zip". 
 
 "Codes for reproducing results.zip":
-https://www.dropbox.com/s/0nfw1e6mcuij4m4/Codes%20for%20reproducing%20results.zip?dl=0
+https://www.dropbox.com/s/rpn3lgv8dpew97c/Codes%20for%20reproducing%20results.zip?dl=0
 
 "Data.zip":
-https://www.dropbox.com/s/o5q4vh4e3q8be3f/Data.zip?dl=0
+https://www.dropbox.com/s/4jb8l6d7o9na1t9/Data.zip?dl=0
 
 Unzip the zip files will result in two directories "/Data" and "/Codes for reproducing results". 
 
